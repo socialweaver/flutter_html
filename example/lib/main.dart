@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'package:flutter_html/html_parser.dart';
 import 'package:flutter_html/image_render.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 void main() => runApp(new MyApp());
 
@@ -136,6 +140,13 @@ const htmlData = """
       <img alt='Empty source' src='' />
       <h3>Broken network image</h3>
       <img alt='Broken image' src='https://www.notgoogle.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png' />
+      <br/>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/_xvTieZFwgs" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      <video width="320" height="240" controls>
+        <source src="https://www.sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+      </video>
+      <iframe src="https://www.google.com" height="200" width="300" title="Iframe Example"></iframe>      
 """;
 
 class _MyHomePageState extends State<MyHomePage> {
@@ -151,8 +162,7 @@ class _MyHomePageState extends State<MyHomePage> {
           data: htmlData,
           //Optional parameters:
           customImageRenders: {
-            networkSourceMatcher(domains: ["flutter.dev"]):
-                (context, attributes, element) {
+            networkSourceMatcher(domains: ["flutter.dev"]): (context, attributes, element) {
               return FlutterLogo(size: 36);
             },
             networkSourceMatcher(domains: ["mydomain.com"]): networkImageRender(
@@ -162,11 +172,41 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             // On relative paths starting with /wiki, prefix with a base url
             (attr, _) => attr["src"] != null && attr["src"].startsWith("/wiki"):
-                networkImageRender(
-                    mapUrl: (url) => "https://upload.wikimedia.org" + url),
+                networkImageRender(mapUrl: (url) => "https://upload.wikimedia.org" + url),
             // Custom placeholder image for broken links
             networkSourceMatcher(): networkImageRender(altWidget: (_) => FlutterLogo()),
           },
+
+          //Video Player
+          customRender: {
+            "iframe": (RenderContext context, Widget child, attributes, _) {
+              if (attributes["src"].contains("youtube")) {
+                //Return a youtube player
+                YoutubePlayerController youtubePlayerController = YoutubePlayerController(
+                  initialVideoId: YoutubePlayer.convertUrlToId(attributes["src"]),
+                  flags: YoutubePlayerFlags(
+                    autoPlay: false,
+                    mute: false,
+                  ),
+                );
+
+                return YoutubePlayerBuilder(
+                  player: YoutubePlayer(
+                    controller: youtubePlayerController,
+                    showVideoProgressIndicator: true,
+                  ),
+                  builder: (_, player) => player,
+                );
+              } else {
+                //return the normal iFrame
+                String src = attributes["src"] ?? "", title = attributes["title"] ?? "";
+                String iFrameHtml = "<iframe src=\"$src\" title=\"$title\"></iframe>";
+                print(iFrameHtml);
+                return Html(data: iFrameHtml);
+              }
+            },
+          },
+
           onLinkTap: (url) {
             print("Opening $url...");
           },
